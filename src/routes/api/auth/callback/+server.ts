@@ -1,4 +1,4 @@
-import { error, type RequestHandler } from "@sveltejs/kit";
+import { error, redirect, type RequestHandler } from "@sveltejs/kit";
 import {BASE_URL, SPOTIFY_APP_CLIENT_ID, SPOTIFY_APP_CLIENT_SECRET} from "$env/static/private"
 
 export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
         throw error(400, 'State Mismatch!');
     }
 
-    const response = await fetch('https/accounts.spotify.com/api/token', {
+    const response = await fetch('https://accounts.spotify.com/api/token', {
         method: "POST",
         headers : {
             'Content-Type' : 'application/x-www-form-urlencoded',
@@ -29,5 +29,14 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
 
     const responseJSON = await response.json();
 
-    console.log(responseJSON);
+    if(responseJSON.error) {
+        throw error(400, responseJSON.error_description);
+    }
+
+    cookies.delete('spotify_auth_state', {path:'/'});
+    cookies.delete('spotify_auth_challenge_verifier', {path:'/'})
+    cookies.set('refresh_token', responseJSON.refresh_token, {path:'/'})
+    cookies.set('access_token', responseJSON.access_token, {path:'/'})
+
+    throw redirect(303, '/')
 }
